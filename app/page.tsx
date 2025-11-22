@@ -11,6 +11,12 @@ import {
   MobileNavMenu,
 } from "@/components/ui/resizable-navbar";
 import { useState } from "react";
+import { Hero } from "@/components/landing/hero";
+import { Features } from "@/components/landing/features";
+import { HowItWorks } from "@/components/landing/how-it-works";
+import { Testimonials } from "@/components/landing/testimonials";
+import { CTASection } from "@/components/landing/cta-section";
+import { Footer } from "@/components/landing/footer";
 
 export default function Home() {
   const navItems = [
@@ -19,18 +25,18 @@ export default function Home() {
       link: "#features",
     },
     {
-      name: "Pricing",
-      link: "#pricing",
+      name: "How it Works",
+      link: "#how-it-works",
     },
     {
-      name: "Contact",
-      link: "#contact",
+      name: "Testimonials",
+      link: "#testimonials",
     },
   ];
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   return (
-    <div className="relative w-full">
+    <div className="relative w-full min-h-screen flex flex-col">
       <Navbar>
         {/* Desktop Navigation */}
         <NavBody>
@@ -86,7 +92,19 @@ export default function Home() {
         </MobileNav>
       </Navbar>
 
-      {/* Navbar */}
+      <main className="flex-1">
+        <Hero />
+        <Features />
+        <div id="how-it-works">
+          <HowItWorks />
+        </div>
+        <div id="testimonials">
+          <Testimonials />
+        </div>
+        <CTASection />
+      </main>
+
+      <Footer />
     </div>
   );
 }
