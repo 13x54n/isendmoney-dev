@@ -23,13 +23,17 @@ export function Hero() {
                     </p>
 
                     <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
-                        <Button size="lg" className="h-12 px-8 text-base">
-                            Get Started
-                            <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
-                        <Button variant="outline" size="lg" className="h-12 px-8 text-base">
-                            View Exchange Rates
-                        </Button>
+                        <Link href="/register">
+                            <Button size="lg" className="h-12 px-8 text-base">
+                                Get Started
+                                <ArrowRight className="ml-2 h-4 w-4" />
+                            </Button>
+                        </Link>
+                        <Link href="/exchange-rates">
+                            <Button variant="outline" size="lg" className="h-12 px-8 text-base">
+                                View Exchange Rates
+                            </Button>
+                        </Link>
                     </div>
 
                     <div className="pt-8 flex items-center justify-center gap-8 text-neutral-500 dark:text-neutral-400 text-sm">

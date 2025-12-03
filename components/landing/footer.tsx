@@ -32,30 +32,30 @@ export function Footer() {
                     <div>
                         <h4 className="font-bold mb-6">Company</h4>
                         <ul className="space-y-4 text-sm text-neutral-500 dark:text-neutral-400">
-                            <li><Link href="#" className="hover:text-primary transition-colors">About Us</Link></li>
-                            <li><Link href="#" className="hover:text-primary transition-colors">Careers</Link></li>
-                            <li><Link href="#" className="hover:text-primary transition-colors">Press</Link></li>
-                            <li><Link href="#" className="hover:text-primary transition-colors">Partners</Link></li>
+                            <li><Link href="/about" className="hover:text-primary transition-colors">About Us</Link></li>
+                            <li><Link href="/careers" className="hover:text-primary transition-colors">Careers</Link></li>
+                            <li><Link href="/press" className="hover:text-primary transition-colors">Press</Link></li>
+                            <li><Link href="/partners" className="hover:text-primary transition-colors">Partners</Link></li>
                         </ul>
                     </div>
 
                     <div>
                         <h4 className="font-bold mb-6">Support</h4>
                         <ul className="space-y-4 text-sm text-neutral-500 dark:text-neutral-400">
-                            <li><Link href="#" className="hover:text-primary transition-colors">Help Center</Link></li>
-                            <li><Link href="#" className="hover:text-primary transition-colors">Contact Us</Link></li>
-                            <li><Link href="#" className="hover:text-primary transition-colors">Security</Link></li>
-                            <li><Link href="#" className="hover:text-primary transition-colors">Status</Link></li>
+                            <li><Link href="/support" className="hover:text-primary transition-colors">Help Center</Link></li>
+                            <li><Link href="/support" className="hover:text-primary transition-colors">Contact Us</Link></li>
+                            <li><Link href="/security" className="hover:text-primary transition-colors">Security</Link></li>
+                            <li><Link href="/status" className="hover:text-primary transition-colors">Status</Link></li>
                         </ul>
                     </div>
 
                     <div>
                         <h4 className="font-bold mb-6">Legal</h4>
                         <ul className="space-y-4 text-sm text-neutral-500 dark:text-neutral-400">
-                            <li><Link href="#" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
-                            <li><Link href="#" className="hover:text-primary transition-colors">Terms of Service</Link></li>
-                            <li><Link href="#" className="hover:text-primary transition-colors">Cookie Policy</Link></li>
-                            <li><Link href="#" className="hover:text-primary transition-colors">Licenses</Link></li>
+                            <li><Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link></li>
+                            <li><Link href="/terms" className="hover:text-primary transition-colors">Terms of Service</Link></li>
+                            <li><Link href="/cookies" className="hover:text-primary transition-colors">Cookie Policy</Link></li>
+                            <li><Link href="/licenses" className="hover:text-primary transition-colors">Licenses</Link></li>
                         </ul>
                     </div>
                 </div>
@@ -63,6 +63,8 @@ export function Footer() {
                 <div className="pt-8 border-t border-neutral-200 dark:border-neutral-800 text-center text-sm text-neutral-500 dark:text-neutral-400">
                     <p>&copy; {new Date().getFullYear()} iSendMoney. All rights reserved.</p>
                 </div>
+
+                <p className="text-center text-sm text-neutral-500 dark:text-neutral-400">Made with <span className="text-primary">❤️</span> by Ming Open Web Headquarters</p>
             </div>
         </footer>
     );
