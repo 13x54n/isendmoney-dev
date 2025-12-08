@@ -20,6 +20,14 @@ const MAPPING = {
   'chevron.right': 'chevron-right',
   'clock.fill': 'history',
   'person.fill': 'person',
+  'gearshape.fill': 'settings',
+  'person.2.fill': 'people',
+  'building.columns.fill': 'account-balance',
+  'iphone': 'smartphone',
+  'bell.fill': 'notifications',
+  'arrow.up.arrow.down': 'swap-vert',
+  'car.fill': 'directions-car',
+  'figure.walk': 'directions-walk',
 } as IconMapping;
 
 /**

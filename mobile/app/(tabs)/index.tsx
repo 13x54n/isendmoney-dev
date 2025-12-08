@@ -3,75 +3,73 @@ import { useRouter } from 'expo-router';
 import { Colors } from '@/constants/theme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
-const ACCOUNTS = [
-  { id: '1', currency: 'USD', balance: '12,450.00', flag: '🇺🇸' },
-  { id: '2', currency: 'EUR', balance: '4,200.50', flag: '🇪🇺' },
-  { id: '3', currency: 'GBP', balance: '1,100.00', flag: '🇬🇧' },
+const RECENT_CONTACTS = [
+  { id: '1', name: 'Mom', initials: 'M' },
+  { id: '2', name: 'John', initials: 'JD' },
+  { id: '3', name: 'Sarah', initials: 'SS' },
+  { id: '4', name: 'Mike', initials: 'MJ' },
+  { id: '5', name: 'Anna', initials: 'AL' },
+];
+
+const TRANSACTIONS: { id: string; recipient: string; status: string; date: string; amount: string; }[] = [
+  // { id: '1', recipient: 'Arjun K.', status: 'Completed', date: 'Today, 10:23 AM', amount: '1000 NPR' },
+  // { id: '2', recipient: 'Sarah S.', status: 'Processing', date: 'Yesterday, 4:15 PM', amount: '500 NPR' },
+  // { id: '3', recipient: 'Mom', status: 'Completed', date: 'Oct 24, 2023', amount: '2000 NPR' },
+  // { id: '4', recipient: 'John D.', status: 'Failed', date: 'Oct 22, 2023', amount: '1500 NPR' },
 ];
 
 export default function HomeScreen() {
   const router = useRouter();
 
-  const renderAccountCard = ({ item }: { item: typeof ACCOUNTS[0] }) => (
-    <View style={styles.accountCard}>
-      <View style={styles.accountHeader}>
-        <View style={styles.flagContainer}>
-          <Text style={styles.flag}>{item.flag}</Text>
-        </View>
-        <Text style={styles.currencyCode}>{item.currency}</Text>
+  const renderRecentContact = ({ item }: { item: typeof RECENT_CONTACTS[0] }) => (
+    <TouchableOpacity style={styles.contactItem} onPress={() => router.push({ pathname: '/(tabs)/send', params: { recipient: item.id } })}>
+      <View style={styles.contactAvatar}>
+        <Text style={styles.contactInitials}>{item.initials}</Text>
       </View>
-      <Text style={styles.accountBalance}>{item.balance}</Text>
-    </View>
+      <Text style={styles.contactName}>{item.name}</Text>
+    </TouchableOpacity>
   );
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity style={styles.profileButton}>
-          <View style={styles.profileIcon}>
-            <Text style={styles.profileInitials}>AJ</Text>
+        <TouchableOpacity style={styles.profileButton} onPress={() => router.push('/walk')}>
+          <View style={[styles.profileIcon, styles.glowEffect]}>
+            <IconSymbol name="figure.walk" size={24} color="#fff" />
           </View>
         </TouchableOpacity>
+
+        <View style={styles.rateContainer}>
+          <View style={styles.rateLabelContainer}>
+            <View style={styles.liveIndicator} />
+            <Text style={styles.rateLabel}>Best Rate</Text>
+          </View>
+          <Text style={styles.rateValue}>1 CAD = 98.45 NPR</Text>
+        </View>
+
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.headerActionButton}>
+          <TouchableOpacity style={styles.headerActionButton} onPress={() => router.push('/notifications')}>
             <IconSymbol name="bell.fill" size={24} color={Colors.light.text} />
           </TouchableOpacity>
         </View>
       </View>
 
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.accountsSection}>
+        <View style={styles.quickSendSection}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Quick Send</Text>
+            <TouchableOpacity onPress={() => router.push('/(tabs)/history')}>
+              <Text style={styles.seeAll}>See all</Text>
+            </TouchableOpacity>
+          </View>
           <FlatList
-            data={ACCOUNTS}
-            renderItem={renderAccountCard}
+            data={RECENT_CONTACTS}
+            renderItem={renderRecentContact}
             keyExtractor={(item) => item.id}
             horizontal
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.accountsList}
-            snapToInterval={160}
-            decelerationRate="fast"
+            contentContainerStyle={styles.contactsList}
           />
-        </View>
-
-        <View style={styles.actionsContainer}>
-          <TouchableOpacity style={styles.actionButton} onPress={() => router.push('/(tabs)/send')}>
-            <View style={[styles.actionIcon, { backgroundColor: Colors.light.primary }]}>
-              <IconSymbol name="paperplane.fill" size={24} color={Colors.light.onPrimary} />
-            </View>
-            <Text style={styles.actionLabel}>Send</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
-            <View style={styles.actionIcon}>
-              <IconSymbol name="plus" size={24} color={Colors.light.primary} />
-            </View>
-            <Text style={styles.actionLabel}>Add</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.actionButton}>
-            <View style={styles.actionIcon}>
-              <IconSymbol name="arrow.down.left" size={24} color={Colors.light.primary} />
-            </View>
-            <Text style={styles.actionLabel}>Request</Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.section}>
@@ -82,18 +80,48 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          {[1, 2, 3, 4].map((item) => (
-            <View key={item} style={styles.transactionItem}>
-              <View style={styles.transactionIcon}>
-                <IconSymbol name="bag.fill" size={20} color={Colors.light.text} />
+          {TRANSACTIONS.length > 0 ? (
+            TRANSACTIONS.map((item) => (
+              <TouchableOpacity
+                key={item.id}
+                style={styles.transactionItem}
+                onPress={() => router.push({
+                  pathname: '/receipt',
+                  params: {
+                    id: item.id,
+                    recipient: item.recipient,
+                    status: item.status,
+                    date: item.date,
+                    amount: item.amount
+                  }
+                })}
+              >
+                <View style={[styles.transactionIcon, { backgroundColor: item.status === 'Completed' ? '#dcfce7' : item.status === 'Processing' ? '#fef9c3' : '#fee2e2' }]}>
+                  <IconSymbol
+                    name={item.status === 'Completed' ? 'checkmark' : item.status === 'Processing' ? 'clock.fill' : 'xmark'}
+                    size={20}
+                    color={item.status === 'Completed' ? '#16a34a' : item.status === 'Processing' ? '#ca8a04' : '#dc2626'}
+                  />
+                </View>
+                <View style={styles.transactionDetails}>
+                  <Text style={styles.transactionStatus}>{item.status}</Text>
+                  <Text style={styles.transactionName}>{item.recipient}</Text>
+                  <Text style={styles.transactionDate}>{item.date}</Text>
+                </View>
+                <Text style={styles.transactionAmount}>{item.amount}</Text>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={styles.emptyStateContainer}>
+              <View style={styles.emptyStateIcon}>
+                <IconSymbol name="heart.fill" size={32} color={Colors.light.primary} />
               </View>
-              <View style={styles.transactionDetails}>
-                <Text style={styles.transactionName}>Apple Store</Text>
-                <Text style={styles.transactionDate}>Today</Text>
-              </View>
-              <Text style={styles.transactionAmount}>-$1,299.00</Text>
+              <Text style={styles.emptyStateText}>Send money back home to your loved ones</Text>
+              <TouchableOpacity style={styles.startTransferButton} onPress={() => router.push('/(tabs)/send')}>
+                <Text style={styles.startTransferText}>Start Transfer</Text>
+              </TouchableOpacity>
             </View>
-          ))}
+          )}
         </View>
       </ScrollView>
     </View>
@@ -139,51 +167,37 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 100,
   },
-  accountsSection: {
+  quickSendSection: {
     marginBottom: 32,
-  },
-  accountsList: {
     paddingHorizontal: 20,
-    gap: 16,
   },
-  accountCard: {
-    width: 150,
-    height: 150,
-    backgroundColor: Colors.light.surface,
-    borderRadius: 24,
-    padding: 20,
-    justifyContent: 'space-between',
+  contactsList: {
+    gap: 20,
+    paddingTop: 16,
   },
-  accountHeader: {
-    flexDirection: 'row',
+  contactItem: {
     alignItems: 'center',
-    gap: 12,
+    gap: 8,
   },
-  flagContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#fff',
+  contactAvatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: Colors.light.surface,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: Colors.light.border,
   },
-  flag: {
-    fontSize: 18,
-  },
-  currencyCode: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: Colors.light.text,
-  },
-  accountBalance: {
+  contactInitials: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: '600',
+    color: Colors.light.primary,
+  },
+  contactName: {
+    fontSize: 14,
     color: Colors.light.text,
+    fontWeight: '500',
   },
   actionsContainer: {
     flexDirection: 'row',
@@ -260,5 +274,85 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     color: Colors.light.text,
+  },
+  transactionStatus: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.light.primary, // Or dynamic color based on status
+    marginBottom: 2,
+  },
+  rateContainer: {
+    alignItems: 'center',
+  },
+  rateLabelContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+    gap: 6,
+    backgroundColor: 'rgba(22, 163, 74, 0.1)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  liveIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#16a34a',
+  },
+  rateLabel: {
+    fontSize: 12,
+    color: '#16a34a',
+    fontWeight: '600',
+  },
+  rateValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: Colors.light.text,
+  },
+  emptyStateContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    backgroundColor: Colors.light.surface,
+    borderRadius: 24,
+    paddingHorizontal: 24,
+  },
+  emptyStateIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(22, 163, 74, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emptyStateText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.light.text,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 24,
+  },
+  startTransferButton: {
+    backgroundColor: Colors.light.primary,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+  },
+  startTransferText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
+  },
+  glowEffect: {
+    shadowColor: '#16a34a',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 10,
+    elevation: 8,
+    backgroundColor: '#16a34a',
+    borderWidth: 2,
+    borderColor: '#4ade80',
   },
 });

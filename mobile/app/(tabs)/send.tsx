@@ -1,8 +1,25 @@
 import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useState } from 'react';
 
 export default function SendScreen() {
+    const [sendAmount, setSendAmount] = useState('1000');
+    const [isCadToNpr, setIsCadToNpr] = useState(true);
+
+    const exchangeRate = isCadToNpr ? 98.45 : 0.0101; // Example rates
+    const fee = isCadToNpr ? 4.14 : 0.00; // Example fee
+
+    // Calculate receive amount
+    // Logic: (Send Amount - Fee) * Rate
+    // Simplified for demo
+    const amountToConvert = parseFloat(sendAmount.replace(/,/g, '')) || 0;
+    const receiveAmount = ((amountToConvert - fee) * exchangeRate).toFixed(2);
+
+    const toggleDirection = () => {
+        setIsCadToNpr(!isCadToNpr);
+    };
+
     return (
         <View style={styles.container}>
             <ScrollView contentContainerStyle={styles.content}>
@@ -15,41 +32,29 @@ export default function SendScreen() {
                         <View style={styles.inputRow}>
                             <TextInput
                                 style={styles.amountInput}
-                                value="1,000"
+                                value={sendAmount}
+                                onChangeText={setSendAmount}
                                 keyboardType="numeric"
                                 placeholderTextColor={Colors.light.icon}
                             />
-                            <TouchableOpacity style={styles.currencySelector}>
+                            <View style={styles.currencyContainer}>
                                 <View style={styles.flagContainer}>
-                                    <Text style={styles.flag}>🇺🇸</Text>
+                                    <Text style={styles.flag}>{isCadToNpr ? '🇨🇦' : '🇳🇵'}</Text>
                                 </View>
-                                <Text style={styles.currencyCode}>USD</Text>
-                                <IconSymbol name="chevron.down" size={16} color={Colors.light.text} />
-                            </TouchableOpacity>
+                                <Text style={styles.currencyCode}>{isCadToNpr ? 'CAD' : 'NPR'}</Text>
+                            </View>
                         </View>
                     </View>
 
-                    {/* Breakdown Section */}
-                    <View style={styles.breakdownSection}>
-                        <View style={styles.breakdownLine}>
-                            <View style={styles.breakdownIcon}>
-                                <IconSymbol name="minus" size={12} color={Colors.light.icon} />
-                            </View>
-                            <Text style={styles.breakdownText}>4.14 USD fee</Text>
-                        </View>
-                        <View style={styles.breakdownLine}>
-                            <View style={styles.breakdownIcon}>
-                                <IconSymbol name="equal" size={12} color={Colors.light.icon} />
-                            </View>
-                            <Text style={styles.breakdownText}>995.86 USD converted</Text>
-                        </View>
-                        <View style={styles.breakdownLine}>
-                            <View style={styles.breakdownIcon}>
-                                <IconSymbol name="multiply" size={12} color={Colors.light.icon} />
-                            </View>
-                            <Text style={styles.breakdownText}>0.9205 Guaranteed rate</Text>
-                        </View>
+                    {/* Swap Button / Divider */}
+                    <View style={styles.swapContainer}>
+                        <View style={styles.divider} />
+                        <TouchableOpacity style={styles.swapButton} onPress={toggleDirection}>
+                            <IconSymbol name="arrow.up.arrow.down" size={20} color={Colors.light.primary} />
+                        </TouchableOpacity>
+                        <View style={styles.divider} />
                     </View>
+
 
                     {/* Recipient Gets Section */}
                     <View style={[styles.inputSection, styles.recipientSection]}>
@@ -59,17 +64,38 @@ export default function SendScreen() {
                         <View style={styles.inputRow}>
                             <TextInput
                                 style={styles.amountInput}
-                                value="916.69"
+                                value={receiveAmount}
                                 editable={false}
                                 placeholderTextColor={Colors.light.icon}
                             />
-                            <TouchableOpacity style={styles.currencySelector}>
+                            <View style={styles.currencyContainer}>
                                 <View style={styles.flagContainer}>
-                                    <Text style={styles.flag}>🇪🇺</Text>
+                                    <Text style={styles.flag}>{isCadToNpr ? '🇳🇵' : '🇨🇦'}</Text>
                                 </View>
-                                <Text style={styles.currencyCode}>EUR</Text>
-                                <IconSymbol name="chevron.down" size={16} color={Colors.light.text} />
-                            </TouchableOpacity>
+                                <Text style={styles.currencyCode}>{isCadToNpr ? 'NPR' : 'CAD'}</Text>
+                            </View>
+                        </View>
+                    </View>
+
+                    {/* Breakdown Section */}
+                    <View style={styles.breakdownSection}>
+                        <View style={styles.breakdownLine}>
+                            <View style={styles.breakdownIcon}>
+                                <IconSymbol name="minus" size={12} color={Colors.light.icon} />
+                            </View>
+                            <Text style={styles.breakdownText}>{fee.toFixed(2)} {isCadToNpr ? 'CAD' : 'NPR'} fee</Text>
+                        </View>
+                        <View style={styles.breakdownLine}>
+                            <View style={styles.breakdownIcon}>
+                                <IconSymbol name="equal" size={12} color={Colors.light.icon} />
+                            </View>
+                            <Text style={styles.breakdownText}>{(amountToConvert - fee).toFixed(2)} {isCadToNpr ? 'CAD' : 'NPR'} converted</Text>
+                        </View>
+                        <View style={styles.breakdownLine}>
+                            <View style={styles.breakdownIcon}>
+                                <IconSymbol name="multiply" size={12} color={Colors.light.icon} />
+                            </View>
+                            <Text style={styles.breakdownText}>{exchangeRate.toFixed(4)} Guaranteed rate</Text>
                         </View>
                     </View>
                 </View>
@@ -136,7 +162,7 @@ const styles = StyleSheet.create({
         color: Colors.light.text,
         flex: 1,
     },
-    currencySelector: {
+    currencyContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         backgroundColor: Colors.light.background,
@@ -144,6 +170,8 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         borderRadius: 24,
         gap: 8,
+        borderWidth: 1,
+        borderColor: Colors.light.border,
     },
     flagContainer: {
         width: 24,
@@ -161,10 +189,34 @@ const styles = StyleSheet.create({
         fontWeight: 'bold',
         color: Colors.light.text,
     },
+    swapContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginVertical: 16,
+    },
+    divider: {
+        flex: 1,
+        height: 1,
+        backgroundColor: Colors.light.border,
+    },
+    swapButton: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: Colors.light.surface,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: Colors.light.primary,
+        marginHorizontal: 16,
+    },
     breakdownSection: {
         paddingVertical: 16,
         paddingLeft: 16,
         gap: 12,
+        borderTopWidth: 1,
+        borderTopColor: Colors.light.border,
+        marginTop: 16,
     },
     breakdownLine: {
         flexDirection: 'row',

@@ -1,8 +1,13 @@
 import { StyleSheet, View, Text, TouchableOpacity, Image } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
+import { useRouter } from 'expo-router';
+import { useAuth } from '@/context/auth';
 
 export default function ProfileScreen() {
+    const router = useRouter();
+    const { signOut } = useAuth();
+
     return (
         <View style={styles.container}>
             <View style={styles.header}>
@@ -20,7 +25,7 @@ export default function ProfileScreen() {
             <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Settings</Text>
 
-                <TouchableOpacity style={styles.menuItem}>
+                <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/settings/personal-info')}>
                     <View style={styles.menuIcon}>
                         <IconSymbol name="person.fill" size={20} color={Colors.light.text} />
                     </View>
@@ -36,16 +41,16 @@ export default function ProfileScreen() {
                     <IconSymbol name="chevron.right" size={20} color={Colors.light.icon} />
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.menuItem}>
+                <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/settings/notifications')}>
                     <View style={styles.menuIcon}>
-                        <IconSymbol name="clock.fill" size={20} color={Colors.light.text} />
+                        <IconSymbol name="bell.fill" size={20} color={Colors.light.text} />
                     </View>
                     <Text style={styles.menuLabel}>Notifications</Text>
                     <IconSymbol name="chevron.right" size={20} color={Colors.light.icon} />
                 </TouchableOpacity>
             </View>
 
-            <TouchableOpacity style={styles.logoutButton}>
+            <TouchableOpacity style={styles.logoutButton} onPress={signOut}>
                 <Text style={styles.logoutText}>Log Out</Text>
             </TouchableOpacity>
         </View>
