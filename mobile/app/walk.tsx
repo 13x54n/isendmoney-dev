@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { StyleSheet, View, Text, TouchableOpacity, Dimensions, Alert, StatusBar } from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity, Dimensions, Alert, StatusBar, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { VideoView, useVideoPlayer } from 'expo-video';
@@ -21,7 +21,7 @@ type GameState = {
 };
 
 const INITIAL_STATE: GameState = {
-    waterLevel: 80,
+    waterLevel: 0,
     streak: 22,
     coins: 0,
     isWalking: false,
@@ -30,7 +30,6 @@ const INITIAL_STATE: GameState = {
 // Video-based Character Component
 const VideoCharacter = ({ isWalking, waterLevel }: { isWalking: boolean; waterLevel: number }) => {
     const [videoState, setVideoState] = useState<'walk' | 'sleeping'>('sleeping');
-    const [videoKey, setVideoKey] = useState(0); // For forcing VideoView re-render if needed
     const isInitialMount = useRef(true);
 
     // State machine logic - simple transitions between walk and sleeping
@@ -61,17 +60,20 @@ const VideoCharacter = ({ isWalking, waterLevel }: { isWalking: boolean; waterLe
         }
     };
 
-    // Both walk and sleeping videos loop
-    const shouldLoop = true;
-
     // Get initial source (sleeping state)
     const initialSource = getVideoSource('sleeping');
-    
-    // Create player with initial source
-    const player = useVideoPlayer(initialSource, (playerInstance) => {
-        playerInstance.loop = true; // Both videos loop
-        playerInstance.play(); // Start playback immediately
-    });
+
+    // Create player with initial source - simplified without callback
+    const player = useVideoPlayer(initialSource);
+
+    // Initialize player settings on mount
+    useEffect(() => {
+        if (player) {
+            player.loop = true;
+            player.volume = 0;
+            player.play();
+        }
+    }, [player]);
 
     // Update player source and settings when state changes
     useEffect(() => {
@@ -80,26 +82,47 @@ const VideoCharacter = ({ isWalking, waterLevel }: { isWalking: boolean; waterLe
             isInitialMount.current = false;
             return;
         }
-        
+
+        if (!player) return;
+
         console.log('🔄 Updating video player for state:', videoState);
         const newSource = getVideoSource(videoState);
-        // Replace the video source
-        player.replace(newSource);
-        // Update loop setting (both videos loop)
-        player.loop = true;
-        // Ensure video is playing
-        player.play();
-        // Force VideoView remount by updating key to ensure clean state
-        setVideoKey(prev => prev + 1);
+
+        // Replace the video source asynchronously to avoid UI freezes on iOS
+        player.replaceAsync(newSource)
+            .then(() => {
+                try {
+                    // Update loop setting (both videos loop)
+                    player.loop = true;
+                    // Muted
+                    player.volume = 0;
+                    // Ensure video is playing
+                    player.play();
+                    console.log('✅ Video replaced and playing:', videoState);
+                } catch (error) {
+                    console.error('Error updating video player settings:', error);
+                }
+            })
+            .catch((error) => {
+                console.error('Error replacing video source:', error);
+            });
     }, [videoState, player]);
 
     return (
-        <VideoView
-            key={videoKey}
-            player={player}
-            style={{ width: CHAR_WIDTH, height: CHAR_HEIGHT }}
-            contentFit="cover"
-        />
+        <View style={{ width: CHAR_WIDTH, height: CHAR_HEIGHT, backgroundColor: '#60a5fa' }}>
+            {player ? (
+                <VideoView
+                    player={player}
+                    style={{ width: CHAR_WIDTH, height: CHAR_HEIGHT }}
+                    contentFit="cover"
+                    nativeControls={false}
+                />
+            ) : (
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                    <Text style={{ color: '#fff' }}>Loading video...</Text>
+                </View>
+            )}
+        </View>
     );
 };
 
@@ -189,29 +212,38 @@ export default function WalkScreen() {
 
             {/* UI Panel */}
             <View style={styles.uiPanel}>
-                <View style={styles.statsRow}>
-                    <View>
-                        <Text style={styles.waterLabel}>Water Level</Text>
-                        <View style={styles.waterMeter}>
-                            <View style={[styles.waterFill, { width: `${state.waterLevel}%` }]} />
-                        </View>
+                {/* Energy Bar Section */}
+                <View style={styles.energySection}>
+                    {/* Top Row: Energy Level and Streak */}
+                    <View style={styles.energyTopRow}>
+                        <Text style={styles.energyLabel}>ENERGY LEVEL</Text>
+                        <Text style={styles.streakText}>{state.streak}-DAY STREAK</Text>
                     </View>
-                    <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={styles.streakTitle}>{state.streak} Day Streak</Text>
-                        <Text style={styles.subText}>7 days to next unlock</Text>
-                        <View style={styles.pipsRow}>
-                            <View style={[styles.pip, styles.pipActive]} />
-                            <View style={[styles.pip, styles.pipActive]} />
-                            <View style={styles.pip} />
+
+                    {/* Simple Progress Bar */}
+                    <View style={styles.progressBarContainer}>
+                        <View style={styles.progressBar}>
+                            <View style={[styles.progressFill, { width: `${state.waterLevel}%` }]} />
                         </View>
+                        {/* Time remaining on the right */}
+                        <Text style={styles.timeDisplay}>{Math.floor(state.waterLevel / 10)}h {state.waterLevel % 10 * 6}m</Text>
                     </View>
+
                 </View>
                 <View style={styles.actionRow}>
-                    <TouchableOpacity style={styles.actionButton} onPress={refillWater}>
-                        <Text style={styles.btnText}>Water Refill</Text>
+                    <TouchableOpacity style={{ ...styles.actionButton, backgroundColor: '#c7ced8' }} onPress={refillWater}>
+                        <Image
+                            source={require('@/assets/images/drop.jpeg')}
+                            style={styles.dropIcon}
+                            resizeMode="contain"
+                        />
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.actionButton}>
-                        <Text style={styles.btnText}>Redeem</Text>
+                    <TouchableOpacity style={{ ...styles.actionButton, backgroundColor: '#d9c1aa' }}>
+                        <Image
+                            source={require('@/assets/images/cart.jpeg')}
+                            style={{ width: 64, height: 84, objectFit: 'contain' }}
+                            resizeMode="contain"
+                        />
                     </TouchableOpacity>
                 </View>
             </View>
@@ -222,29 +254,74 @@ export default function WalkScreen() {
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#60a5fa' },
     header: { flexDirection: 'row', justifyContent: 'space-between', paddingTop: 60, paddingHorizontal: 20, zIndex: 100 },
-    backBtn: { padding: 8 },
-    backText: { color: '#1e293b', fontWeight: 'bold' },
+    backBtn: { padding: 8, backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 8 },
+    backText: { color: '#ffffff', fontWeight: 'bold' },
     coinBadge: { backgroundColor: 'rgba(255,255,255,0.9)', padding: 8, borderRadius: 8 },
     coinText: { fontWeight: 'bold', fontSize: 14 },
     uiPanel: {
         height: UI_PANEL_HEIGHT,
-        backgroundColor: '#fff',
+        backgroundColor: '#ffffff',
         padding: 24,
         position: 'absolute',
         bottom: 0,
         left: 0,
         right: 0
     },
-    statsRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 32 },
-    waterLabel: { fontSize: 24, fontWeight: 'bold', marginBottom: 12 },
-    waterMeter: { width: 150, height: 20, backgroundColor: '#e2e8f0', borderRadius: 10, overflow: 'hidden' },
-    waterFill: { height: '100%', backgroundColor: '#3b82f6', borderRadius: 10 },
-    streakTitle: { fontSize: 20, fontWeight: 'bold' },
-    subText: { color: '#64748b', fontSize: 12, marginBottom: 8 },
-    pipsRow: { flexDirection: 'row', gap: 8 },
-    pip: { width: 16, height: 16, borderRadius: 8, backgroundColor: '#e2e8f0' },
-    pipActive: { backgroundColor: '#000' },
+    // Energy Bar Styles
+    energySection: {
+        marginBottom: 24,
+    },
+    energyTopRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        marginBottom: 12,
+    },
+    energyLabel: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#06133b',
+        letterSpacing: 1,
+    },
+    streakText: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#dd9c3b',
+        letterSpacing: 1,
+    },
+    progressBarContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+        marginBottom: 8,
+    },
+    progressBar: {
+        flex: 1,
+        height: 24,
+        backgroundColor: '#d7d7d7ff',
+        borderRadius: 12,
+        overflow: 'hidden',
+    },
+    progressFill: {
+        height: '100%',
+        backgroundColor: '#4c9fdf',
+    },
+    timeDisplay: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: '#4c9fdf',
+        minWidth: 80,
+    },
+    unlockText: {
+        fontSize: 12,
+        color: '#60a5fa',
+        textAlign: 'center',
+    },
     actionRow: { flexDirection: 'row', gap: 16 },
-    actionButton: { flex: 1, backgroundColor: '#e2e8f0', paddingVertical: 16, borderRadius: 4, alignItems: 'center' },
+    actionButton: { flex: 1, backgroundColor: 'transparent', borderRadius: 14, alignItems: 'center', width: 150 },
+    dropIcon: {
+        width: 70,
+        height: 70,
+        paddingTop: 16,
+    },
     btnText: { fontWeight: '600', fontSize: 14, color: '#1e293b' },
 });

@@ -20,7 +20,21 @@ export const auth = getAuth(app);
 export const signInWithGoogle = async () => {
     try {
         // Dynamically import to avoid crash in Expo Go/Dev Client without native module
-        const { GoogleSignin } = require('@react-native-google-signin/google-signin');
+        let GoogleSignin;
+        try {
+            const googleSigninModule = require('@react-native-google-signin/google-signin');
+            if (googleSigninModule) {
+                GoogleSignin = googleSigninModule.GoogleSignin;
+            }
+        } catch (e) {
+            // Module resolution failed
+        }
+
+        if (!GoogleSignin) {
+            throw new Error(
+                'Google Sign-In is not supported in Expo Go. You must use a Development Build to test this feature. Run "npx expo run:ios" or "npx expo run:android" to create a local development build.'
+            );
+        }
 
         // Configure Google Sign-In
         GoogleSignin.configure({
@@ -43,8 +57,7 @@ export const signInWithGoogle = async () => {
         if (error.code === 'ExampleError') {
             // handle specific error
         }
-        // If the module is missing (Expo Go), this will catch
-        console.error("Google Sign-In Error (likely missing native module):", error);
+        console.error("Google Sign-In Error:", error.message);
         throw error;
     }
 };

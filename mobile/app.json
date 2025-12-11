@@ -42,7 +42,14 @@
           }
         }
       ],
-      "expo-video"
+      "expo-font",
+      "expo-web-browser",
+      "expo-video",
+      "@react-native-google-signin/google-signin"
+    ],
+    "assetBundlePatterns": [
+      "**/*",
+      "assets/**/*.mov"
     ],
     "experiments": {
       "typedRoutes": true,
