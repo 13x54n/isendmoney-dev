@@ -24,9 +24,9 @@ export default function LoginScreen() {
                         <Text style={styles.googleButtonText}>Sign in with Google</Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity style={styles.guestButton} onPress={signInAsGuest}>
+                    {/* <TouchableOpacity style={styles.guestButton} onPress={signInAsGuest}>
                         <Text style={styles.guestButtonText}>Try Demo (Guest Mode)</Text>
-                    </TouchableOpacity>
+                    </TouchableOpacity> */}
                 </View>
 
                 <Text style={styles.footerText}>

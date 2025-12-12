@@ -6,7 +6,7 @@ import { useAuth } from '@/context/auth';
 
 export default function ProfileScreen() {
     const router = useRouter();
-    const { signOut } = useAuth();
+    const { signOut, user } = useAuth();
 
     return (
         <View style={styles.container}>
@@ -16,10 +16,14 @@ export default function ProfileScreen() {
 
             <View style={styles.profileHeader}>
                 <View style={styles.avatarContainer}>
-                    <IconSymbol name="person.fill" size={40} color={Colors.light.primary} />
+                    {user?.photoURL ? (
+                        <Image source={{ uri: user.photoURL }} style={{ width: 80, height: 80, borderRadius: 40 }} />
+                    ) : (
+                        <IconSymbol name="person.fill" size={40} color={Colors.light.primary} />
+                    )}
                 </View>
-                <Text style={styles.name}>Alex Johnson</Text>
-                <Text style={styles.email}>alex.johnson@example.com</Text>
+                <Text style={styles.name}>{user?.displayName || 'Guest User'}</Text>
+                <Text style={styles.email}>{user?.email || 'guest@example.com'}</Text>
             </View>
 
             <View style={styles.section}>

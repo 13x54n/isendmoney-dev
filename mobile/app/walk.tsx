@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { useEvent } from 'expo';
+import { useAuth } from '@/context/auth';
 
 // --- Constants ---
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -18,6 +19,7 @@ type GameState = {
     streak: number;
     coins: number;
     isWalking: boolean;
+    refillTime?: string | null;
 };
 
 const INITIAL_STATE: GameState = {
@@ -25,6 +27,7 @@ const INITIAL_STATE: GameState = {
     streak: 22,
     coins: 0,
     isWalking: false,
+    refillTime: null,
 };
 
 // Video-based Character Component
@@ -128,6 +131,7 @@ const VideoCharacter = ({ isWalking, waterLevel }: { isWalking: boolean; waterLe
 
 export default function WalkScreen() {
     const router = useRouter();
+    const { user } = useAuth();
     const [state, setState] = useState<GameState>(INITIAL_STATE);
 
     useEffect(() => {
@@ -135,50 +139,101 @@ export default function WalkScreen() {
     }, []);
 
     useEffect(() => {
-        saveState();
-    }, [state]);
+        if (user) loadState();
+    }, [user]);
 
-    // Decrease water level while walking
+    // Debounced save removed in favor of explicit actions
+    // Visual update loop (does not save to DB)
+
+    // Real-time energy countdown
     useEffect(() => {
-        if (state.isWalking && state.waterLevel > 0) {
-            const interval = setInterval(() => {
-                setState(prev => {
-                    const newWaterLevel = Math.max(0, prev.waterLevel - 1);
-                    return {
-                        ...prev,
-                        waterLevel: newWaterLevel,
-                        isWalking: newWaterLevel > 0 ? prev.isWalking : false
-                    };
-                });
-            }, 1000); // Decrease by 1 every second
-
-            return () => clearInterval(interval);
+        if (!state.refillTime) {
+            if (state.waterLevel > 0) setState(prev => ({ ...prev, waterLevel: 0, isWalking: false }));
+            return;
         }
-    }, [state.isWalking, state.waterLevel]);
+
+        const interval = setInterval(() => {
+            const now = Date.now();
+            const refillTime = new Date(state.refillTime!).getTime();
+            const expiration = refillTime + (12 * 60 * 60 * 1000); // 12 hours
+            const remaining = expiration - now;
+
+            if (remaining <= 0) {
+                setState(prev => ({ ...prev, waterLevel: 0, isWalking: false, refillTime: null }));
+            } else {
+                const percent = (remaining / (12 * 60 * 60 * 1000)) * 100;
+                setState(prev => ({ ...prev, waterLevel: percent }));
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [state.refillTime]);
 
     const loadState = async () => {
+        if (!user) return;
         try {
+            // Try fetching from API
+            const res = await fetch(`${process.env.EXPO_PUBLIC_GAME_STATS_API_URL}/api/stats/${user.uid}`);
+            if (res.ok) {
+                const data = await res.json();
+                setState(prev => ({
+                    ...prev,
+                    waterLevel: data.energy ?? 0,
+                    streak: data.streak ?? 0,
+                    refillTime: data.refillTime,
+                    // coins: data.coins ?? prev.coins // Keep local coins for now if not in DB
+                }));
+            } else {
+                throw new Error("API Failed");
+            }
+        } catch (e) {
+            // Fallback to local
             const stored = await AsyncStorage.getItem(STORAGE_KEY);
             if (stored) setState(JSON.parse(stored));
-        } catch (e) { }
+        }
     };
 
-    const saveState = async () => {
+    const performAction = async (action: 'start' | 'stop' | 'refill') => {
+        if (!user) return;
         try {
-            await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-        } catch (e) { }
+            const res = await fetch(`${process.env.EXPO_PUBLIC_GAME_STATS_API_URL}/api/stats/${user.uid}/action`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action })
+            });
+            const data = await res.json();
+
+            // Sync local state to trusted backend state
+            setState(prev => ({
+                ...prev,
+                waterLevel: data.energy ?? 0,
+                streak: data.streak ?? 0,
+                refillTime: data.refillTime,
+                isWalking: data.status === 'walking'
+            }));
+        } catch (e) {
+            console.error("Action failed:", e);
+        }
     };
 
     const toggleWalk = () => {
-        if (state.waterLevel <= 0) {
+        const newStatus = !state.isWalking;
+
+        if (newStatus && state.waterLevel <= 0) {
             Alert.alert("Thirsty!", "You need more water to walk.");
             return;
         }
-        setState(prev => ({ ...prev, isWalking: !prev.isWalking }));
+
+        // Optimistic UI Update
+        setState(prev => ({ ...prev, isWalking: newStatus }));
+
+        // Call API
+        performAction(newStatus ? 'start' : 'stop');
     };
 
     const refillWater = () => {
         setState(prev => ({ ...prev, waterLevel: 100, isWalking: true }));
+        performAction('refill');
     };
 
     return (
@@ -196,7 +251,7 @@ export default function WalkScreen() {
 
             {/* Character - full width, tappable to toggle walk */}
             <TouchableOpacity
-                onPress={toggleWalk}
+                // onPress={toggleWalk}
                 style={{
                     position: 'absolute',
                     left: 0,
@@ -207,7 +262,7 @@ export default function WalkScreen() {
                 }}
                 activeOpacity={1}
             >
-                <VideoCharacter isWalking={state.isWalking} waterLevel={state.waterLevel} />
+                <VideoCharacter isWalking={state.waterLevel > 0} waterLevel={state.waterLevel} />
             </TouchableOpacity>
 
             {/* UI Panel */}
@@ -226,7 +281,9 @@ export default function WalkScreen() {
                             <View style={[styles.progressFill, { width: `${state.waterLevel}%` }]} />
                         </View>
                         {/* Time remaining on the right */}
-                        <Text style={styles.timeDisplay}>{Math.floor(state.waterLevel / 10)}h {state.waterLevel % 10 * 6}m</Text>
+                        <Text style={styles.timeDisplay}>
+                            {Math.floor((state.waterLevel / 100) * 12)}h {Math.floor(((state.waterLevel / 100) * 12 * 60) % 60)}m
+                        </Text>
                     </View>
 
                 </View>

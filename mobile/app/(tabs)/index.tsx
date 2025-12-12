@@ -1,5 +1,7 @@
 import { StyleSheet, View, Text, TouchableOpacity, ScrollView, FlatList } from 'react-native';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
+import { useAuth } from '@/context/auth';
 import { Colors } from '@/constants/theme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 
@@ -20,11 +22,65 @@ const TRANSACTIONS: { id: string; recipient: string; status: string; date: strin
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { user } = useAuth();
+  const [exchangeRate, setExchangeRate] = useState<number | null>(null);
+  const [contacts, setContacts] = useState<any[]>([]); // Should type properly
+  const [transactions, setTransactions] = useState<any[]>([]);
 
-  const renderRecentContact = ({ item }: { item: typeof RECENT_CONTACTS[0] }) => (
-    <TouchableOpacity style={styles.contactItem} onPress={() => router.push({ pathname: '/(tabs)/send', params: { recipient: item.id } })}>
+  useEffect(() => {
+    const fetchRate = async () => {
+      try {
+        const response = await fetch(`${process.env.EXPO_PUBLIC_RATE_MICROSERVICE_URL}/api/rate`);
+        const data = await response.json();
+        if (data.rate) {
+          setExchangeRate(data.rate);
+        }
+      } catch (error) {
+        console.error('Failed to fetch rate:', error);
+      }
+    };
+    fetchRate();
+  }, []);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (!user) return;
+      try {
+        const apiBase = process.env.EXPO_PUBLIC_USER_PAYMENTS_API_URL;
+
+        // 1. Ensure User Exists / Update info
+        await fetch(`${apiBase}/api/users`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: user.uid,
+            email: user.email,
+            fullName: user.displayName
+          })
+        });
+
+        // 2. Fetch Contacts
+        const contactsRes = await fetch(`${apiBase}/api/users/${user.uid}/contacts`);
+        if (contactsRes.ok) setContacts(await contactsRes.json());
+
+        // 3. Fetch Transactions
+        const txRes = await fetch(`${apiBase}/api/transactions/${user.uid}`);
+        if (txRes.ok) setTransactions(await txRes.json());
+
+      } catch (e) {
+        console.error('Failed to fetch user data:', e);
+      }
+    };
+    fetchUserData();
+  }, [user]);
+
+  // Remove constants if they break typescript, or just ignore for now.
+  // We replaced usage with state `contacts` and `transactions`.
+
+  const renderRecentContact = ({ item }: { item: any }) => (
+    <TouchableOpacity style={styles.contactItem} onPress={() => router.push({ pathname: '/(tabs)/send', params: { recipient: item.userId || item._id } })}>
       <View style={styles.contactAvatar}>
-        <Text style={styles.contactInitials}>{item.initials}</Text>
+        <Text style={styles.contactInitials}>{item.initials || item.name?.[0] || '?'}</Text>
       </View>
       <Text style={styles.contactName}>{item.name}</Text>
     </TouchableOpacity>
@@ -44,7 +100,7 @@ export default function HomeScreen() {
             <View style={styles.liveIndicator} />
             <Text style={styles.rateLabel}>Best Rate</Text>
           </View>
-          <Text style={styles.rateValue}>1 CAD = 98.45 NPR</Text>
+          <Text style={styles.rateValue}>1 CAD = {exchangeRate ? exchangeRate.toFixed(2) : '...'} NPR</Text>
         </View>
 
         <View style={styles.headerActions}>
@@ -63,9 +119,9 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
           <FlatList
-            data={RECENT_CONTACTS}
+            data={contacts}
             renderItem={renderRecentContact}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item) => item._id || item.id}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.contactsList}
@@ -80,8 +136,8 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          {TRANSACTIONS.length > 0 ? (
-            TRANSACTIONS.map((item) => (
+          {transactions.length > 0 ? (
+            transactions.map((item) => (
               <TouchableOpacity
                 key={item.id}
                 style={styles.transactionItem}
@@ -89,26 +145,26 @@ export default function HomeScreen() {
                   pathname: '/receipt',
                   params: {
                     id: item.id,
-                    recipient: item.recipient,
+                    recipient: item.recipientName, // Mapped from backend
                     status: item.status,
-                    date: item.date,
-                    amount: item.amount
+                    date: new Date(item.date).toLocaleDateString(), // Format date
+                    amount: `${item.amount} ${item.currency || 'NPR'}` // Format amount
                   }
                 })}
               >
-                <View style={[styles.transactionIcon, { backgroundColor: item.status === 'Completed' ? '#dcfce7' : item.status === 'Processing' ? '#fef9c3' : '#fee2e2' }]}>
+                <View style={[styles.transactionIcon, { backgroundColor: item.status === 'completed' ? '#dcfce7' : item.status === 'processing' ? '#fef9c3' : '#fee2e2' }]}>
                   <IconSymbol
-                    name={item.status === 'Completed' ? 'checkmark' : item.status === 'Processing' ? 'clock.fill' : 'xmark'}
+                    name={item.status === 'completed' ? 'checkmark' : item.status === 'processing' ? 'clock.fill' : 'xmark'}
                     size={20}
-                    color={item.status === 'Completed' ? '#16a34a' : item.status === 'Processing' ? '#ca8a04' : '#dc2626'}
+                    color={item.status === 'completed' ? '#16a34a' : item.status === 'processing' ? '#ca8a04' : '#dc2626'}
                   />
                 </View>
                 <View style={styles.transactionDetails}>
                   <Text style={styles.transactionStatus}>{item.status}</Text>
-                  <Text style={styles.transactionName}>{item.recipient}</Text>
-                  <Text style={styles.transactionDate}>{item.date}</Text>
+                  <Text style={styles.transactionName}>{item.recipientName}</Text>
+                  <Text style={styles.transactionDate}>{new Date(item.date).toLocaleDateString()}</Text>
                 </View>
-                <Text style={styles.transactionAmount}>{item.amount}</Text>
+                <Text style={styles.transactionAmount}>{item.amount} {item.currency || 'NPR'}</Text>
               </TouchableOpacity>
             ))
           ) : (

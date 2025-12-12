@@ -1,8 +1,9 @@
 import { StyleSheet, View, Text, FlatList, TouchableOpacity, TextInput } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { useState } from 'react';
-import { useRouter } from 'expo-router';
+import { useState, useCallback } from 'react';
+import { useRouter, useFocusEffect } from 'expo-router';
+import { useAuth } from '@/context/auth';
 
 type ContactType = 'bank' | 'mobile_money';
 
@@ -20,70 +21,43 @@ interface Contact {
 }
 
 // Dummy contacts data
-const CONTACTS: Contact[] = [
-    {
-        id: '1',
-        name: 'Mom',
-        initials: 'M',
-        type: 'mobile_money',
-        provider: 'M-Pesa',
-        phoneNumber: '+254 712 345 678'
-    },
-    {
-        id: '2',
-        name: 'John Doe',
-        initials: 'JD',
-        type: 'bank',
-        bankName: 'Equity Bank',
-        accountNumber: '1234567890'
-    },
-    {
-        id: '3',
-        name: 'Sarah Smith',
-        initials: 'SS',
-        type: 'mobile_money',
-        provider: 'MTN Mobile Money',
-        phoneNumber: '+256 772 123 456'
-    },
-    {
-        id: '4',
-        name: 'Mike Johnson',
-        initials: 'MJ',
-        type: 'bank',
-        bankName: 'KCB Bank',
-        accountNumber: '0987654321'
-    },
-    {
-        id: '5',
-        name: 'Anna Lee',
-        initials: 'AL',
-        type: 'mobile_money',
-        provider: 'Airtel Money',
-        phoneNumber: '+254 733 444 555'
-    },
-    {
-        id: '6',
-        name: 'David Brown',
-        initials: 'DB',
-        type: 'bank',
-        bankName: 'Co-operative Bank',
-        accountNumber: '1122334455'
-    },
-    {
-        id: '7',
-        name: 'Emily Davis',
-        initials: 'ED',
-        type: 'mobile_money',
-        provider: 'M-Pesa',
-        phoneNumber: '+254 700 111 222'
-    },
-];
+// Dummy contacts removed for dynamic fetching
+const CONTACTS: Contact[] = [];
 
 export default function ContactsScreen() {
     const router = useRouter();
+    const { user } = useAuth();
+    const [dbContacts, setDbContacts] = useState<Contact[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
 
-    const filteredContacts = CONTACTS.filter(contact =>
+    useFocusEffect(
+        useCallback(() => {
+            if (!user) return;
+            const fetchContacts = async () => {
+                try {
+                    const res = await fetch(`${process.env.EXPO_PUBLIC_USER_PAYMENTS_API_URL}/api/users/${user.uid}/contacts`);
+                    if (res.ok) {
+                        const data = await res.json();
+                        const mapped = data.map((c: any) => ({
+                            id: c._id,
+                            name: c.name,
+                            initials: c.initials,
+                            type: c.type,
+                            bankName: c.bankName,
+                            accountNumber: c.accountNumber,
+                            provider: c.provider,
+                            phoneNumber: c.phoneNumber
+                        }));
+                        setDbContacts(mapped);
+                    }
+                } catch (e) { console.error(e); }
+            };
+            fetchContacts();
+        }, [user])
+    );
+
+    // Use only DB contacts
+    const filteredContacts = dbContacts.filter(contact =>
         contact.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         (contact.bankName && contact.bankName.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (contact.provider && contact.provider.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -115,7 +89,7 @@ export default function ContactsScreen() {
         <View style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.title}>Contacts</Text>
-                <TouchableOpacity style={styles.addButton}>
+                <TouchableOpacity style={styles.addButton} onPress={() => router.push('/add-contact')}>
                     <IconSymbol name="plus" size={24} color={Colors.light.primary} />
                 </TouchableOpacity>
             </View>
@@ -150,6 +124,19 @@ export default function ContactsScreen() {
                         <IconSymbol name="chevron.right" size={20} color={Colors.light.icon} />
                     </TouchableOpacity>
                 )}
+                ListEmptyComponent={
+                    <View style={styles.emptyContainer}>
+                        <View style={styles.emptyIcon}>
+                            <IconSymbol name="person.2.fill" size={48} color={Colors.light.icon} />
+                        </View>
+                        <Text style={styles.emptyTitle}>No contacts found</Text>
+                        <Text style={styles.emptyText}>Add your family and friends to send money easily.</Text>
+                        <TouchableOpacity style={styles.addButtonEmpty} onPress={() => router.push('/add-contact')}>
+                            <IconSymbol name="plus" size={20} color="#fff" style={{ marginRight: 8 }} />
+                            <Text style={styles.addButtonText}>Add Contact</Text>
+                        </TouchableOpacity>
+                    </View>
+                }
             />
         </View>
     );
@@ -243,5 +230,45 @@ const styles = StyleSheet.create({
     contactDetailText: {
         fontSize: 14,
         color: Colors.light.icon,
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        paddingTop: 60,
+        paddingHorizontal: 40,
+    },
+    emptyIcon: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: Colors.light.surface,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    emptyTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: Colors.light.text,
+        marginBottom: 8,
+    },
+    emptyText: {
+        fontSize: 14,
+        color: Colors.light.icon,
+        textAlign: 'center',
+        marginBottom: 24,
+        lineHeight: 20,
+    },
+    addButtonEmpty: {
+        flexDirection: 'row',
+        backgroundColor: Colors.light.primary,
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 24,
+        alignItems: 'center',
+    },
+    addButtonText: {
+        color: '#fff',
+        fontWeight: 'bold',
+        fontSize: 14,
     },
 });

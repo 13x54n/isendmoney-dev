@@ -1,7 +1,8 @@
 import { initializeApp, getApp, getApps } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithCredential } from 'firebase/auth';
-// import { GoogleSignin } from '@react-native-google-signin/google-signin'; // Removed to avoid crash
-
+// @ts-ignore -- getReactNativePersistence is available in runtime but types might be missing in this version
+import { initializeAuth, getReactNativePersistence, getAuth, GoogleAuthProvider, signInWithCredential, Auth } from 'firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 // TODO: Replace with your actual config
 const firebaseConfig = {
@@ -14,32 +15,27 @@ const firebaseConfig = {
 };
 
 // Initialize Firebase
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-export const auth = getAuth(app);
+let app;
+let auth: Auth;
+
+if (!getApps().length) {
+    app = initializeApp(firebaseConfig);
+    auth = initializeAuth(app, {
+        persistence: getReactNativePersistence(AsyncStorage)
+    });
+} else {
+    app = getApp();
+    auth = getAuth(app);
+}
+
+export { auth };
 
 export const signInWithGoogle = async () => {
     try {
-        // Dynamically import to avoid crash in Expo Go/Dev Client without native module
-        let GoogleSignin;
-        try {
-            const googleSigninModule = require('@react-native-google-signin/google-signin');
-            if (googleSigninModule) {
-                GoogleSignin = googleSigninModule.GoogleSignin;
-            }
-        } catch (e) {
-            // Module resolution failed
-        }
-
-        if (!GoogleSignin) {
-            throw new Error(
-                'Google Sign-In is not supported in Expo Go. You must use a Development Build to test this feature. Run "npx expo run:ios" or "npx expo run:android" to create a local development build.'
-            );
-        }
-
         // Configure Google Sign-In
         GoogleSignin.configure({
-            webClientId: 'YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
-            iosClientId: 'YOUR_IOS_CLIENT_ID.apps.googleusercontent.com',
+            webClientId: '861573051234-lmqj4vd73cb7k4sh0qv5k6ftbtgd8jsi.apps.googleusercontent.com', // Required for Firebase
+            // iosClientId is automatically read from GoogleService-Info.plist
         });
 
         await GoogleSignin.hasPlayServices();
@@ -54,10 +50,7 @@ export const signInWithGoogle = async () => {
         }
 
     } catch (error: any) {
-        if (error.code === 'ExampleError') {
-            // handle specific error
-        }
-        console.error("Google Sign-In Error:", error.message);
+        console.error("Google Sign-In Error:", error);
         throw error;
     }
 };

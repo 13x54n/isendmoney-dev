@@ -1,45 +1,48 @@
 import { StyleSheet, View, Text, FlatList, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { Colors } from '@/constants/theme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'expo-router';
+import { useAuth } from '@/context/auth';
 
 // Dummy initial data
-const INITIAL_TRANSACTIONS = [
-    { id: '1', recipient: 'Arjun K.', status: 'Completed', date: 'Today, 10:23 AM', amount: '1000 NPR' },
-    { id: '2', recipient: 'Sarah S.', status: 'Processing', date: 'Yesterday, 4:15 PM', amount: '500 NPR' },
-    { id: '3', recipient: 'Mom', status: 'Completed', date: 'Oct 24, 2023', amount: '2000 NPR' },
-    { id: '4', recipient: 'John D.', status: 'Failed', date: 'Oct 22, 2023', amount: '1500 NPR' },
-    { id: '5', recipient: 'Netflix', status: 'Completed', date: 'Oct 20, 2023', amount: '1500 NPR' },
-    { id: '6', recipient: 'Amazon', status: 'Completed', date: 'Oct 18, 2023', amount: '5000 NPR' },
-    { id: '7', recipient: 'Dad', status: 'Processing', date: 'Oct 15, 2023', amount: '3000 NPR' },
-    { id: '8', recipient: 'Spotify', status: 'Completed', date: 'Oct 12, 2023', amount: '800 NPR' },
-    { id: '9', recipient: 'Utilities', status: 'Completed', date: 'Oct 10, 2023', amount: '2500 NPR' },
-    { id: '10', recipient: 'Rent', status: 'Completed', date: 'Oct 01, 2023', amount: '15000 NPR' },
-];
+// Initial data - empty for dynamic fetching
+const INITIAL_TRANSACTIONS: any[] = [];
 
 const FILTERS = ['All', 'Processing', 'Completed', 'Failed'];
 
 export default function HistoryScreen() {
     const router = useRouter();
+    const { user } = useAuth();
     const [transactions, setTransactions] = useState(INITIAL_TRANSACTIONS);
     const [loading, setLoading] = useState(false);
     const [activeFilter, setActiveFilter] = useState('All');
 
-    const loadMoreData = () => {
-        if (loading) return;
-        setLoading(true);
+    // Fetch transactions on mount
+    useEffect(() => {
+        if (!user) return;
+        const fetchTransactions = async () => {
+            try {
+                const res = await fetch(`${process.env.EXPO_PUBLIC_USER_PAYMENTS_API_URL}/api/transactions/${user.uid}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    // Map backend data to frontend structure if needed
+                    const mapped = data.map((t: any) => ({
+                        id: t._id,
+                        recipient: t.recipientName,
+                        status: t.status, // Ensure case matches (capitalize?)
+                        date: new Date(t.date).toLocaleString(),
+                        amount: `${t.amount} ${t.currency || 'NPR'}`
+                    }));
+                    setTransactions(mapped);
+                }
+            } catch (e) { console.error(e); }
+        };
+        fetchTransactions();
+    }, [user]);
 
-        // Simulate API call
-        setTimeout(() => {
-            const moreData = [
-                { id: Math.random().toString(), recipient: 'Previous Month', status: 'Completed', date: 'Sep 30, 2023', amount: '1500 NPR' },
-                { id: Math.random().toString(), recipient: 'Old Contact', status: 'Completed', date: 'Sep 28, 2023', amount: '200 NPR' },
-                { id: Math.random().toString(), recipient: 'Subscription', status: 'Failed', date: 'Sep 25, 2023', amount: '1000 NPR' },
-            ];
-            setTransactions([...transactions, ...moreData]);
-            setLoading(false);
-        }, 1500);
+    const loadMoreData = () => {
+        // Pagination not implemented yet
     };
 
     const handleDownload = () => {
@@ -125,8 +128,19 @@ export default function HistoryScreen() {
                     </TouchableOpacity>
                 )}
                 onEndReached={loadMoreData}
-                onEndReachedThreshold={0.5}
                 ListFooterComponent={renderFooter}
+                ListEmptyComponent={
+                    <View style={styles.emptyContainer}>
+                        <View style={styles.emptyIcon}>
+                            <IconSymbol name="clock.arrow.circlepath" size={48} color={Colors.light.icon} />
+                        </View>
+                        <Text style={styles.emptyTitle}>No transactions yet</Text>
+                        <Text style={styles.emptyText}>Start sending money to see your history here.</Text>
+                        <TouchableOpacity style={styles.startBtn} onPress={() => router.push('/(tabs)/send')}>
+                            <Text style={styles.startBtnText}>Start Transfer</Text>
+                        </TouchableOpacity>
+                    </View>
+                }
             />
         </View>
     );
@@ -231,5 +245,43 @@ const styles = StyleSheet.create({
     loader: {
         paddingVertical: 20,
         alignItems: 'center',
+    },
+    emptyContainer: {
+        alignItems: 'center',
+        paddingTop: 60,
+        paddingHorizontal: 40,
+    },
+    emptyIcon: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: Colors.light.surface,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    emptyTitle: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: Colors.light.text,
+        marginBottom: 8,
+    },
+    emptyText: {
+        fontSize: 14,
+        color: Colors.light.icon,
+        textAlign: 'center',
+        marginBottom: 24,
+        lineHeight: 20,
+    },
+    startBtn: {
+        backgroundColor: Colors.light.primary,
+        paddingVertical: 12,
+        paddingHorizontal: 24,
+        borderRadius: 24,
+    },
+    startBtnText: {
+        color: '#fff',
+        fontWeight: 'bold',
+        fontSize: 14,
     },
 });

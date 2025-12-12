@@ -40,7 +40,7 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <ThemeProvider value={colorScheme === 'dark' ? CustomDarkTheme : LightTheme}>
+      <ThemeProvider value={LightTheme}>
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="receipt" options={{ headerShown: false }} />
@@ -49,7 +49,7 @@ export default function RootLayout() {
           <Stack.Screen name="walk" options={{ headerShown: false }} />
           <Stack.Screen name="notifications" options={{ headerShown: false }} />
         </Stack>
-        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+        <StatusBar hidden />
       </ThemeProvider>
     </AuthProvider>
   );

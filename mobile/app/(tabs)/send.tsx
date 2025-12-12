@@ -1,23 +1,99 @@
-import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView } from 'react-native';
+import { StyleSheet, View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from 'react-native';
 import { Colors } from '@/constants/theme';
+import { useState, useCallback } from 'react';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
+import { useAuth } from '@/context/auth';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { useState } from 'react';
 
 export default function SendScreen() {
+    const router = useRouter();
+    const { user } = useAuth();
+    const params = useLocalSearchParams();
+
     const [sendAmount, setSendAmount] = useState('1000');
     const [isCadToNpr, setIsCadToNpr] = useState(true);
+    const [liveRate, setLiveRate] = useState<number | null>(null);
+    const [contacts, setContacts] = useState<any[]>([]);
+    const [selectedRecipient, setSelectedRecipient] = useState<any | null>(null);
+    const [loading, setLoading] = useState(false);
 
-    const exchangeRate = isCadToNpr ? 98.45 : 0.0101; // Example rates
-    const fee = isCadToNpr ? 4.14 : 0.00; // Example fee
+    useFocusEffect(
+        useCallback(() => {
+            if (!user) return;
+            const fetchData = async () => {
+                try {
+                    // Fetch Rate (can stay once, but harmless to refresh)
+                    const rateRes = await fetch(`${process.env.EXPO_PUBLIC_RATE_MICROSERVICE_URL}/api/rate`);
+                    const rateData = await rateRes.json();
+                    if (rateData.rate) setLiveRate(rateData.rate);
+
+                    // Fetch Contacts
+                    const contactsRes = await fetch(`${process.env.EXPO_PUBLIC_USER_PAYMENTS_API_URL}/api/users/${user.uid}/contacts`);
+                    if (contactsRes.ok) {
+                        const contactsData = await contactsRes.json();
+                        setContacts(contactsData);
+
+                        // Handle route param (Auto-select if passed)
+                        if (params.recipient) {
+                            const rec = contactsData.find((c: any) => c._id === params.recipient || c.id === params.recipient);
+                            if (rec) setSelectedRecipient(rec);
+                        }
+                    }
+                } catch (e) { console.error(e); }
+            };
+            fetchData();
+        }, [user, params.recipient])
+    );
+
+    // Fallback if loading
+    const currentRate = liveRate || 98.45;
+    const exchangeRate = isCadToNpr ? currentRate : (1 / currentRate);
+
+    const amountToConvert = parseFloat(sendAmount.replace(/,/g, '')) || 0;
+
+    // Fee is 0.5% of total CAD
+    const fee = isCadToNpr ? (amountToConvert * 0.005) : 0;
 
     // Calculate receive amount
     // Logic: (Send Amount - Fee) * Rate
-    // Simplified for demo
-    const amountToConvert = parseFloat(sendAmount.replace(/,/g, '')) || 0;
     const receiveAmount = ((amountToConvert - fee) * exchangeRate).toFixed(2);
 
     const toggleDirection = () => {
         setIsCadToNpr(!isCadToNpr);
+    };
+
+    const handleSend = async () => {
+        if (!selectedRecipient || !user) return;
+
+        setLoading(true);
+        try {
+            const payload = {
+                userId: user.uid,
+                recipientName: selectedRecipient.name,
+                amount: parseFloat(receiveAmount), // Store what recipient gets? Or send amount? Usually Source/Dest. Let's store recipient amount for now or add both to schema later. Model has strict 'amount'.
+                status: 'processing',
+                currency: isCadToNpr ? 'NPR' : 'CAD'
+            };
+
+            const res = await fetch(`${process.env.EXPO_PUBLIC_USER_PAYMENTS_API_URL}/api/transactions`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                Alert.alert('Success', 'Transfer initiated successfully!', [
+                    { text: 'OK', onPress: () => router.push('/(tabs)/history') }
+                ]);
+            } else {
+                Alert.alert('Error', 'Failed to initiate transfer');
+            }
+        } catch (e) {
+            console.error(e);
+            Alert.alert('Error', 'An error occurred');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -83,7 +159,7 @@ export default function SendScreen() {
                             <View style={styles.breakdownIcon}>
                                 <IconSymbol name="minus" size={12} color={Colors.light.icon} />
                             </View>
-                            <Text style={styles.breakdownText}>{fee.toFixed(2)} {isCadToNpr ? 'CAD' : 'NPR'} fee</Text>
+                            <Text style={styles.breakdownText}>{fee.toFixed(2)} {isCadToNpr ? 'CAD' : 'NPR'} fee (0.5%)</Text>
                         </View>
                         <View style={styles.breakdownLine}>
                             <View style={styles.breakdownIcon}>
@@ -102,18 +178,62 @@ export default function SendScreen() {
 
                 <View style={styles.recipientContainer}>
                     <Text style={styles.sectionTitle}>Recipient</Text>
-                    <TouchableOpacity style={styles.addRecipientButton}>
-                        <View style={styles.addRecipientIcon}>
-                            <IconSymbol name="plus" size={24} color={Colors.light.primary} />
+
+                    {selectedRecipient ? (
+                        <View style={styles.selectedRecipientCard}>
+                            <View style={styles.selectedRecipientInfo}>
+                                <View style={styles.avatar}>
+                                    <Text style={styles.avatarText}>{selectedRecipient.initials}</Text>
+                                </View>
+                                <View>
+                                    <Text style={styles.recipientName}>{selectedRecipient.name}</Text>
+                                    <Text style={styles.recipientDetail}>
+                                        {selectedRecipient.type === 'bank'
+                                            ? `${selectedRecipient.bankName} • ${selectedRecipient.accountNumber?.slice(-4)}`
+                                            : `${selectedRecipient.provider} • ${selectedRecipient.phoneNumber}`
+                                        }
+                                    </Text>
+                                </View>
+                            </View>
+                            <TouchableOpacity onPress={() => setSelectedRecipient(null)}>
+                                <Text style={styles.changeText}>Change</Text>
+                            </TouchableOpacity>
                         </View>
-                        <Text style={styles.addRecipientText}>Add a recipient</Text>
-                    </TouchableOpacity>
+                    ) : (
+                        <View>
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.contactsScroll}>
+                                <TouchableOpacity style={styles.addRecipientCard} onPress={() => router.push('/add-contact?returnTo=/send')}>
+                                    <View style={styles.addIconCircle}>
+                                        <IconSymbol name="plus" size={24} color={Colors.light.primary} />
+                                    </View>
+                                    <Text style={styles.addCardText}>New</Text>
+                                </TouchableOpacity>
+
+                                {contacts.map((contact: any) => (
+                                    <TouchableOpacity
+                                        key={contact._id || contact.id}
+                                        style={styles.contactCard}
+                                        onPress={() => setSelectedRecipient(contact)}
+                                    >
+                                        <View style={styles.contactCardAvatar}>
+                                            <Text style={styles.contactCardInitials}>{contact.initials}</Text>
+                                        </View>
+                                        <Text style={styles.contactCardName} numberOfLines={1}>{contact.name.split(' ')[0]}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        </View>
+                    )}
                 </View>
             </ScrollView>
 
             <View style={styles.footer}>
-                <TouchableOpacity style={styles.continueButton}>
-                    <Text style={styles.continueButtonText}>Continue</Text>
+                <TouchableOpacity
+                    style={[styles.continueButton, (!selectedRecipient || loading) && styles.continueButtonDisabled]}
+                    onPress={handleSend}
+                    disabled={!selectedRecipient || loading}
+                >
+                    <Text style={styles.continueButtonText}>{loading ? 'Processing...' : 'Continue'}</Text>
                 </TouchableOpacity>
             </View>
         </View>
@@ -273,9 +393,119 @@ const styles = StyleSheet.create({
         borderRadius: 30,
         alignItems: 'center',
     },
+    continueButtonDisabled: {
+        backgroundColor: Colors.light.icon,
+        opacity: 0.5,
+    },
     continueButtonText: {
         color: Colors.light.onPrimary,
         fontSize: 16,
         fontWeight: 'bold',
+    },
+    // Recipient Styles
+    selectedRecipientCard: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        backgroundColor: Colors.light.surface,
+        padding: 16,
+        borderRadius: 16,
+        borderWidth: 1,
+        borderColor: Colors.light.primary,
+    },
+    selectedRecipientInfo: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    avatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: Colors.light.background,
+        justifyContent: 'center',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: Colors.light.border,
+    },
+    avatarText: {
+        fontWeight: 'bold',
+        color: Colors.light.primary,
+    },
+    recipientName: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: Colors.light.text,
+    },
+    recipientDetail: {
+        fontSize: 12,
+        color: Colors.light.icon,
+    },
+    changeText: {
+        color: Colors.light.primary,
+        fontWeight: '600',
+    },
+    contactsScroll: {
+        flexDirection: 'row',
+        gap: 12,
+    },
+    addRecipientCard: {
+        width: 80,
+        height: 100,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: Colors.light.surface,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: Colors.light.border,
+        borderStyle: 'dashed',
+        marginRight: 12,
+    },
+    addIconCircle: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: 'rgba(22, 163, 74, 0.1)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 8,
+    },
+    addCardText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: Colors.light.primary,
+    },
+    contactCard: {
+        width: 80,
+        height: 100,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: Colors.light.surface,
+        borderRadius: 12,
+        borderWidth: 1,
+        borderColor: Colors.light.border,
+        marginRight: 12,
+    },
+    contactCardAvatar: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        backgroundColor: Colors.light.background,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 8,
+        borderWidth: 1,
+        borderColor: Colors.light.border,
+    },
+    contactCardInitials: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: Colors.light.text,
+    },
+    contactCardName: {
+        fontSize: 12,
+        fontWeight: '500',
+        color: Colors.light.text,
+        textAlign: 'center',
     },
 });

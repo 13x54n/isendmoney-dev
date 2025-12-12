@@ -72,13 +72,13 @@ export default function TabLayout() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    position: 'absolute',
-    bottom: 25,
-    left: 30,
-    right: 30,
-    height: 70,
+    // position: 'absolute',
+    // bottom: 25,
+    // left: 110,
+    // right: 110,
+    height: 90,
     backgroundColor: '#ffffff',
-    borderRadius: 35,
+    // borderRadius: 35,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
     paddingBottom: 0, // Reset default padding
   },
   tabBarItem: {
-    height: 70,
+    height: 60,
     paddingTop: 10,
   },
   sendButtonContainer: {
@@ -100,8 +100,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sendButton: {
-    width: 70,
-    height: 70,
+    width: 60,
+    height: 60,
     borderRadius: 35,
     backgroundColor: Colors.light.primary,
     justifyContent: 'center',
