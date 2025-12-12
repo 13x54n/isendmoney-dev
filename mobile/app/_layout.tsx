@@ -48,6 +48,7 @@ export default function RootLayout() {
           <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="walk" options={{ headerShown: false }} />
           <Stack.Screen name="notifications" options={{ headerShown: false }} />
+          <Stack.Screen name="add-contact" options={{ headerShown: false }} />
         </Stack>
         <StatusBar hidden />
       </ThemeProvider>

@@ -1,7 +1,10 @@
 import { StyleSheet, View, Text, FlatList, TouchableOpacity } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors } from '@/constants/theme';
 import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Stack } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
+
+// ... (NOTIFICATIONS array remains unchanged) ...
 
 const NOTIFICATIONS = [
     {
@@ -39,9 +42,17 @@ const NOTIFICATIONS = [
 ];
 
 export default function NotificationsScreen() {
+    const router = useRouter();
+
     return (
-        <View style={styles.container}>
-            <Stack.Screen options={{ title: 'Notifications', headerBackTitle: 'Back' }} />
+        <SafeAreaView style={styles.container} edges={['top']}>
+            <View style={styles.header}>
+                <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                    <IconSymbol name="chevron.left" size={24} color={Colors.light.text} />
+                </TouchableOpacity>
+                <Text style={styles.titleText}>Notifications</Text>
+                <View style={{ width: 40 }} />
+            </View>
 
             <FlatList
                 data={NOTIFICATIONS}
@@ -82,7 +93,7 @@ export default function NotificationsScreen() {
                     </View>
                 )}
             />
-        </View>
+        </SafeAreaView>
     );
 }
 
@@ -167,5 +178,23 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: Colors.light.text,
         lineHeight: 20,
+    },
+    header: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 20,
+        paddingVertical: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: Colors.light.border,
+    },
+    backButton: {
+        padding: 4,
+        marginLeft: -4,
+    },
+    titleText: {
+        fontSize: 18,
+        fontWeight: 'bold',
+        color: Colors.light.text,
     },
 });
